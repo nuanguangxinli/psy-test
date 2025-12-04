@@ -9,30 +9,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- 升级到 Babel 7 以支持现代语法 -->
+    <!-- 使用 Babel 7 以支持 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        /* 基础设置 */
         body { 
             background-color: #F8FAFC; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             color: #1E293B;
             -webkit-tap-highlight-color: transparent; 
         }
-        
-        /* 动画类 */
         .fade-in { animation: fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 自定义滚动条隐藏 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 交互反馈 */
         .active-scale:active { transform: scale(0.98); }
         
-        /* 装饰性箭头 */
         .info-box-arrow {
             width: 0; height: 0; 
             border-left: 8px solid transparent;
@@ -49,37 +43,32 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // ================= 1. 图标路径数据 (零依赖) =================
+        // ================= 1. 图标 (SVG) =================
         const ICON_PATHS = {
-            compass: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-14.243L14.121 14.12 7.758 16.243 9.88 9.879 16.242 7.757z",
-            brain: "M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z",
-            activity: "M22 12h-4l-3 9L9 3l-3 9H2",
-            users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
-            book: "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20",
-            map: "M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
-            arrowRight: "M5 12h14 M12 5l7 7-7 7",
-            check: "M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3",
-            sparkles: "M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3l5.8 1.9-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z",
-            refresh: "M21 12a9 9 0 1 1-6.219-8.56",
-            heart: "M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.566z",
-            info: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 16v-4 M12 8h.01",
-            skip: "M5 4l10 8-10 8V4z M19 5v14",
-            x: "M18 6L6 18 M6 6l12 12",
-            chevronRight: "M9 18l6-6-6-6"
+            Compass: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-14.243L14.121 14.12 7.758 16.243 9.88 9.879 16.242 7.757z",
+            Brain: "M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z",
+            Activity: "M22 12h-4l-3 9L9 3l-3 9H2",
+            Users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+            Book: "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20",
+            Map: "M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
+            ArrowRight: "M5 12h14 M12 5l7 7-7 7",
+            CheckCircle2: "M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3",
+            Sparkles: "M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3l5.8 1.9-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z",
+            RefreshCw: "M21 12a9 9 0 1 1-6.219-8.56",
+            Heart: "M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.566z",
+            Info: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 16v-4 M12 8h.01",
+            SkipForward: "M5 4l10 8-10 8V4z M19 5v14",
+            X: "M18 6L6 18 M6 6l12 12",
+            ChevronRight: "M9 18l6-6-6-6"
         };
 
         const Icon = ({ name, size = 20, className = "", style = {} }) => (
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" 
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
-                className={className} style={style}
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
                 <path d={ICON_PATHS[name]} />
             </svg>
         );
 
-        // ================= 2. 核心数据配置 =================
-
+        // ================= 2. 数据配置 =================
         const DIMENSIONS = {
             rationality: { label: '理性架构', color: '#3B82F6', icon: 'brain' },
             insight: { label: '深层洞察', color: '#8B5CF6', icon: 'map' },
@@ -207,7 +196,6 @@
             }
         };
 
-        // 维度对应的流派映射（用于智能推荐）
         const DIMENSION_THERAPIES_MAP = {
             rationality: ["CBT (认知行为疗法)", "SFBT (焦点解决短期治疗)", "REBT (理性情绪疗法)"],
             insight: ["心理动力学 (Psychodynamic)", "精神分析 (Psychoanalysis)", "客体关系疗法", "荣格分析心理学"],
@@ -229,7 +217,7 @@
             { scenario: "咨询中的沉默", question: "如果在咨询中沉默了两分钟，这通常意味着？", options: [{ text: "有点浪费时间或尴尬，应该赶紧找个话题打破沉默。", dimension: "rationality" }, { text: "潜意识里可能不想面对什么，或者在对抗，值得分析。", dimension: "insight" }, { text: "挺好的，正好趁机感受当下的呼吸，让情绪沉淀一会儿。", dimension: "somatic" }, { text: "一种无声的陪伴，即使不说话，在一起本身就很治愈。", dimension: "meaning" }] },
             { scenario: "改变的关键", question: "一个人要发生根本改变，最关键的那个瞬间通常是？", options: [{ text: "突然看清了自己多年循环的根源，“啊！原来是因为这个！”。", dimension: "insight" }, { text: "换了个角度看死胡同，突然发现原来还有这种解决办法。", dimension: "rationality" }, { text: "以为会被批评，结果对方却温柔回应，那一刻心里的旧伤好了。", dimension: "systemic" }, { text: "紧绷多年的肩膀松下来了，一口长气呼出去了，身体觉得安全了。", dimension: "somatic" }] },
             { scenario: "关于直觉", question: "做决定时，应该多大程度上相信直觉（第六感）？", options: [{ text: "不太可信，直觉往往是脑子偷懒，还是数据和逻辑更靠谱。", dimension: "rationality" }, { text: "很相信，直觉是身体的智慧，脑子会骗人，但肠胃反应不会。", dimension: "somatic" }, { text: "小心点，直觉可能是潜意识洞察，也可能是“一朝被蛇咬”的创伤。", dimension: "insight" }, { text: "直觉是心里某个“部分”的声音，值得听，但不能只听它一个人的。", dimension: "systemic" }] },
-            { scenario: "伴侣吵架", question: "伴侣吵架，问题通常出在？", options: [{ text: "沟通方式不对，需要学习怎么好好说话，控制情绪。", dimension: "rationality" }, { text: "看走了眼，其实是把小时候对父母的气，撒到了眼前人身上。", dimension: "insight" }, { text: "两人陷入了“一个追、一个逃”的恶性循环。", dimension: "systemic" }, { text: "吵架触发了身体里“被抛弃”的原始恐惧。", dimension: "somatic" }] },
+            { scenario: "伴侣吵架", question: "伴侣吵架，问题通常出在？", options: [{ text: "沟通方式不对，需要学习怎么好好说话，控制情绪。", dimension: "rationality" }, { text: "看走了眼，其实是把小时候对父母的气，撒到了眼前人身上。", dimension: "insight" }, { text: "舞步乱了，两人陷入了“一个追、一个逃”的恶性循环。", dimension: "systemic" }, { text: "吵架触发了身体里“被抛弃”的原始恐惧。", dimension: "somatic" }] },
             { scenario: "关于空虚", question: "感到人生虚无、没有意义时，比较好的应对是？", options: [{ text: "别闲着，定个小目标动起来，忙起来了，充实感就回来了。", dimension: "rationality" }, { text: "这是小时候缺爱留下的黑洞，需要回到过去，修补情感缺口。", dimension: "insight" }, { text: "不用急着填满，试着和空虚待一会儿，也许是重新定义人生的机会。", dimension: "meaning" }, { text: "去摸摸泥土，闻闻花香，抱抱大树，从身体触感中找回活着的感觉。", dimension: "somatic" }] },
             { scenario: "关于评价", question: "为什么人们会那么在意别人的看法？", options: [{ text: "因为脑子里有个错误信念，觉得“我必须被喜欢”，这不科学。", dimension: "rationality" }, { text: "其实是在意心里住着的那个严厉的父母，批评的声音内化了。", dimension: "insight" }, { text: "被社会洗脑了，我们不自觉被“只有那样才算成功”的社会标准绑架了。", dimension: "meaning" }, { text: "在原始环境中，被群体排斥意味着生存威胁，这种恐惧刻在基因里。", dimension: "somatic" }] },
             { scenario: "关于痛苦", question: "如果痛苦无法避免（如生老病死），该如何面对？", options: [{ text: "既然躲不掉，就背着它上路，把精力花在真正重要的事情上。", dimension: "meaning" }, { text: "改变能改变的，接受不能改变的，尽量保持乐观心态。", dimension: "rationality" }, { text: "允许自己找个安全的地方大哭一场，彻底宣泄悲伤。", dimension: "insight" }, { text: "回到家人朋友身边，通过和别人的连接来汲取力量。", dimension: "systemic" }] },
@@ -245,57 +233,84 @@
             { scenario: "世界观", question: "如果要把心理世界浓缩成一句话，你更认同哪一句？", options: [{ text: "世界是客观的，痛苦源于错误的看法，修正想法，世界就清朗了。", dimension: "rationality" }, { text: "看不见的潜意识在暗中操控命运，只有看见它，才能醒来。", dimension: "insight" }, { text: "身体比大脑更诚实，大脑会编故事，但身体感觉永远记录真相。", dimension: "somatic" }, { text: "没有人是一座孤岛，我们都是关系网里的节点，牵一发而动全身。", dimension: "systemic" }] }
         ];
 
-        // --- 4. 雷达图组件 (SVG) ---
+        // --- 4. 雷达图组件 ---
         const RadarChart = ({ data }) => {
-            const svgSize = 300;
-            const center = svgSize / 2;
-            const radius = 100;
-            const maxScore = Math.max(...Object.values(data), 5); 
-            const keys = Object.keys(DIMENSIONS);
-            const angleStep = (Math.PI * 2) / keys.length;
+            const canvasRef = useRef(null);
+            
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                
+                const w = rect.width;
+                const h = rect.height;
+                const centerX = w / 2;
+                const centerY = h / 2;
+                const radius = Math.min(w, h) / 2 - 30;
+                
+                ctx.clearRect(0, 0, w, h);
+                
+                const dims = Object.keys(DIMENSIONS);
+                const totalDims = dims.length;
+                const angleSlice = (Math.PI * 2) / totalDims;
 
-            const getPoint = (val, idx) => {
-                const angle = idx * angleStep - Math.PI / 2;
-                const r = (val / maxScore) * radius;
-                const x = center + r * Math.cos(angle);
-                const y = center + r * Math.sin(angle);
-                return `${x},${y}`;
-            };
+                // 绘制背景网格
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                for (let i = 1; i <= 5; i++) {
+                    ctx.beginPath();
+                    for (let j = 0; j < totalDims; j++) {
+                        const r = (radius / 5) * i;
+                        const x = centerX + r * Math.cos(j * angleSlice - Math.PI / 2);
+                        const y = centerY + r * Math.sin(j * angleSlice - Math.PI / 2);
+                        if (j === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
 
-            const polyPoints = keys.map((k, i) => getPoint(data[k], i)).join(" ");
+                // 绘制轴线和标签
+                ctx.fillStyle = '#64748b';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                dims.forEach((key, i) => {
+                    const angle = i * angleSlice - Math.PI / 2;
+                    const x = centerX + (radius + 20) * Math.cos(angle);
+                    const y = centerY + (radius + 20) * Math.sin(angle);
+                    ctx.fillText(DIMENSIONS[key].label, x, y);
+                });
 
-            const grids = [0.2, 0.4, 0.6, 0.8, 1].map((scale, idx) => {
-                const pts = keys.map((_, i) => {
-                    const angle = i * angleStep - Math.PI / 2;
-                    const r = radius * scale;
-                    return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
-                }).join(" ");
-                return <polygon key={idx} points={pts} fill="none" stroke="#E2E8F0" strokeWidth="1" />;
-            });
+                // 绘制数据区域
+                const values = dims.map(k => data[k]);
+                const maxValueInData = Math.max(...values, 5);
+                
+                ctx.beginPath();
+                dims.forEach((key, i) => {
+                    const val = data[key];
+                    const r = (val / maxValueInData) * radius;
+                    const x = centerX + r * Math.cos(i * angleSlice - Math.PI / 2);
+                    const y = centerY + r * Math.sin(i * angleSlice - Math.PI / 2);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(79, 70, 229, 0.2)';
+                ctx.fill();
+                ctx.strokeStyle = '#4f46e5';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }, [data]);
 
-            const axes = keys.map((k, i) => {
-                const angle = i * angleStep - Math.PI / 2;
-                const x = center + radius * Math.cos(angle);
-                const y = center + radius * Math.sin(angle);
-                const lx = center + (radius + 25) * Math.cos(angle);
-                const ly = center + (radius + 25) * Math.sin(angle);
-                return (
-                    <g key={i}>
-                        <line x1={center} y1={center} x2={x} y2={y} stroke="#E2E8F0" strokeWidth="1" />
-                        <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="12" fill="#64748B">
-                            {DIMENSIONS[k].label}
-                        </text>
-                    </g>
-                );
-            });
-
-            return (
-                <svg width={svgSize} height={svgSize} className="mx-auto">
-                    {grids}
-                    {axes}
-                    <polygon points={polyPoints} fill="rgba(79, 70, 229, 0.2)" stroke="#4F46E5" strokeWidth="2" />
-                </svg>
-            );
+            return <canvas ref={canvasRef} style={{width: '300px', height: '300px', margin: '0 auto'}} />;
         };
 
         // --- 5. 主应用组件 ---
@@ -307,10 +322,8 @@
             const [activeTherapy, setActiveTherapy] = useState(null);
             const [activeDimensionInfo, setActiveDimensionInfo] = useState(null);
             const [history, setHistory] = useState([]);
-            
             const infoBoxRef = useRef(null);
-            
-            // 滚动到流派详情
+
             useEffect(() => {
                 if (activeTherapy && infoBoxRef.current) {
                     setTimeout(() => {
@@ -327,8 +340,8 @@
             }, [step]);
 
             const handleAnswer = (dim) => {
-                setHistory([...history, { type: 'answer', dim: dim }]);
-                setScores(p => ({ ...p, [dim]: p[dim] + 1 }));
+                setHistory([...history, { type: 'answer', dim }]);
+                setScores(prev => ({ ...prev, [dim]: prev[dim] + 1 }));
                 nextQ();
             };
 
@@ -338,20 +351,17 @@
                 nextQ();
             };
 
-            // 返回上一题逻辑
             const handleBack = () => {
                 if (qIndex > 0 && history.length > 0) {
                     const lastAction = history[history.length - 1];
                     const newHistory = history.slice(0, -1);
-                    
                     if (lastAction.type === 'answer') {
-                        setScores(p => ({ ...p, [lastAction.dim]: p[lastAction.dim] - 1 }));
-                    } else if (lastAction.type === 'skip') {
+                        setScores(prev => ({ ...prev, [lastAction.dim]: prev[lastAction.dim] - 1 }));
+                    } else {
                         setSkipped(s => s - 1);
                     }
-                    
                     setHistory(newHistory);
-                    setQIndex(qIndex - 1);
+                    setQIndex(prev => prev - 1);
                 }
             };
 
@@ -380,13 +390,9 @@
             const getResult = () => {
                 const total = Object.values(scores).reduce((a,b)=>a+b, 0);
                 if (total < 3) return { type: 'insufficient' };
-                
                 const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-                const topDim = sorted[0][0];
-                const topScore = sorted[0][1];
-                
-                if (topScore < total * 0.32) return { type: 'balanced', sortedDims: sorted }; 
-                return { type: 'specific', dim: topDim, sortedDims: sorted };
+                if (sorted[0][1] < total * 0.32) return { type: 'balanced', sortedDims: sorted };
+                return { type: 'specific', dim: sorted[0][0], sortedDims: sorted };
             };
 
             const resultData = getResult();
@@ -398,33 +404,24 @@
                     recs: Object.keys(THERAPY_KNOWLEDGE_BASE),
                     advice: "也许一位包容性极强、不急于预设框架的资深咨询师会更适合你，你们可以尝试从一种自由、开放的对话氛围开始。"
                 };
-
-                // 获取得分最高的两个维度
+                
                 const dim1 = resultData.sortedDims[0][0];
                 const dim2 = resultData.sortedDims[1][0];
                 
-                // 获取这两个维度的流派
-                let primaryRecs = DIMENSION_THERAPIES_MAP[dim1] || [];
-                let secondaryRecs = DIMENSION_THERAPIES_MAP[dim2] || [];
-                
-                // 合并去重
-                let combinedRecs = [...new Set([...primaryRecs, ...secondaryRecs])];
-                
-                // 如果还不够5个，补第三维度
+                let combinedRecs = [...new Set([...DIMENSION_THERAPIES_MAP[dim1], ...DIMENSION_THERAPIES_MAP[dim2]])];
+
                 if (combinedRecs.length < 5 && resultData.sortedDims.length > 2) {
                     const dim3 = resultData.sortedDims[2][0];
                     combinedRecs = [...new Set([...combinedRecs, ...DIMENSION_THERAPIES_MAP[dim3]])];
                 }
 
-                // 如果是均衡型，强制加入整合式
                 if (resultData.type === 'balanced') {
                     combinedRecs = ["整合式心理咨询 (Integrative Therapy)", ...combinedRecs];
                     combinedRecs = [...new Set(combinedRecs)];
-                    
                     return {
                         title: "全息整合者",
                         desc: "你的心灵地图非常平衡。既尊重理性，也敬畏潜意识；既感知身体，也看重关系。单一流派很难满足你。",
-                        recs: combinedRecs.slice(0, 6), // 取前6个
+                        recs: combinedRecs.slice(0, 6), 
                         advice: "倾向于“整合取向”的咨询师可能更适合你，他们通常能敏锐地根据你当下的状态，灵活调整工作的重点和节奏。"
                     };
                 }
@@ -458,20 +455,16 @@
                 };
                 
                 const specificInfo = lib[resultData.dim];
-                return {
-                    ...specificInfo,
-                    recs: combinedRecs.slice(0, 6)
-                };
+                return { ...specificInfo, recs: combinedRecs.slice(0, 6) };
             };
 
             const analysis = getAnalysisText();
 
-            // --- Views ---
-
+            // 渲染
             if (step === 'intro') {
                 return (
-                    <div className="flex flex-col items-center justify-center min-h-screen p-6 animate-fade-in max-w-lg mx-auto">
-                        <div className="bg-white rounded-3xl shadow-xl p-8 text-center w-full border border-white card">
+                    <div className="flex flex-col items-center justify-center min-h-screen p-6 fade-in max-w-lg mx-auto">
+                        <div className="bg-white rounded-3xl shadow-xl p-8 text-center w-full border border-white card-shadow">
                             <div className="flex justify-center mb-6">
                                 <div className="bg-indigo-50 p-5 rounded-full text-indigo-600">
                                     <Icon name="Compass" size={48} />
@@ -480,14 +473,10 @@
                             <h1 className="text-2xl font-bold text-slate-900 mb-2">心理咨询流派匹配测验</h1>
                             <p className="text-xs font-bold text-indigo-500 tracking-widest mb-6 uppercase">Psychotherapy Orientation Match</p>
                             <p className="text-slate-600 mb-8 text-sm leading-relaxed">
-                                这不是考试，没有对错。<br/>
                                 包含 <strong>{QUESTIONS.length}</strong> 个临床情境的直觉探索。<br/>
-                                我们将通过你的选择，帮你找到最懂你的心理学流派。
+                                通过你的选择，帮你找到最懂你的心理学流派。
                             </p>
-                            <button 
-                                onClick={() => setStep('quiz')}
-                                className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 btn-primary"
-                            >
+                            <button onClick={() => setStep('quiz')} className="btn btn-primary w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 active-scale">
                                 开始探索 <Icon name="ArrowRight" size={20}/>
                             </button>
                         </div>
@@ -498,7 +487,6 @@
             if (step === 'quiz') {
                 const q = QUESTIONS[qIndex];
                 const progress = ((qIndex + 1) / QUESTIONS.length) * 100;
-
                 return (
                     <div className="flex flex-col items-center min-h-screen p-4 pt-8 bg-slate-50 max-w-2xl mx-auto font-sans">
                         <div className="w-full flex justify-between text-xs font-bold text-slate-400 mb-2 px-1">
@@ -511,34 +499,15 @@
                             </span>
                             <span>Q{qIndex + 1} / {QUESTIONS.length}</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-200 rounded-full mb-6 overflow-hidden">
-                            <div className="h-full bg-indigo-500 transition-all duration-300" style={{width: `${progress}%`}}></div>
-                        </div>
-
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 w-full animate-fade-in card">
-                            <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full mb-4 tag">
-                                {q.scenario}
-                            </div>
+                        <div className="w-full h-2 bg-slate-200 rounded-full mb-6 overflow-hidden"><div className="h-full bg-indigo-500 transition-all duration-300" style={{width: `${progress}%`}}></div></div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 w-full fade-in card-shadow">
+                            <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full mb-4 tag">{q.scenario}</div>
                             <h3 className="text-lg font-bold text-slate-800 mb-6 leading-snug">{q.question}</h3>
-                            <div className="space-y-3">
-                                {q.options.map((opt, i) => (
-                                    <button 
-                                        key={i}
-                                        onClick={() => handleAnswer(opt.dimension)}
-                                        className="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 active:bg-indigo-100 transition-colors text-slate-700 text-sm font-medium leading-relaxed option-btn"
-                                    >
-                                        {opt.text}
-                                    </button>
-                                ))}
-                            </div>
+                            <div className="space-y-3">{q.options.map((o, i) => (
+                                <button key={i} onClick={() => handleAnswer(o.dimension)} className="w-full text-left p-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 active:bg-indigo-100 transition-colors text-slate-700 text-sm font-medium leading-relaxed active-scale">{o.text}</button>
+                            ))}</div>
                         </div>
-                        
-                        <button 
-                            onClick={handleSkip}
-                            className="mt-6 text-slate-400 text-sm flex items-center gap-1 hover:text-slate-600 btn-outline"
-                        >
-                            <Icon name="SkipForward" size={16}/> 跳过 / 以上都不符合
-                        </button>
+                        <button onClick={handleSkip} className="mt-6 text-slate-400 text-sm flex items-center gap-1 hover:text-slate-600 btn-outline"><Icon name="SkipForward" size={16}/> 跳过 / 以上都不符合</button>
                     </div>
                 );
             }
@@ -546,138 +515,67 @@
             if (step === 'result') {
                 return (
                     <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto">
-                        <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden animate-fade-in">
-                            {/* Header */}
+                        <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden fade-in">
                             <div className="bg-slate-900 text-white p-8 text-center">
-                                <h2 className="text-sm font-medium text-slate-400 mb-2 flex items-center justify-center gap-2">
-                                    <Icon name="Sparkles" size={16}/> 你的心灵原型
-                                </h2>
-                                <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 mb-4">
-                                    {analysis.title}
-                                </h1>
-                                <p className="text-slate-300 text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed">
-                                    {analysis.desc}
-                                </p>
+                                <h2 className="text-sm font-medium text-slate-400 mb-2 flex items-center justify-center gap-2"><Icon name="Sparkles" size={16}/> 你的心灵原型</h2>
+                                <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 mb-4">{analysis.title}</h1>
+                                <p className="text-slate-300 text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed">{analysis.desc}</p>
                             </div>
-
                             <div className="flex flex-col md:flex-row">
-                                {/* Left: Chart & Dimensions */}
                                 <div className="p-6 md:p-8 md:w-5/12 border-b md:border-b-0 md:border-r border-slate-100 flex flex-col items-center justify-center bg-slate-50/50">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 tracking-widest">能量分布</h3>
                                     <RadarChart data={scores} />
                                     {skipped > 0 && <p className="text-xs text-amber-500 mt-4 bg-amber-50 px-2 py-1 rounded">已跳过 {skipped} 题</p>}
-                                    
                                     <div className="w-full space-y-3 mt-6 px-2 dim-list">
-                                        <p className="text-xs text-slate-400 text-center mb-4 flex items-center justify-center gap-1">
-                                            <Icon name="Info" size={12} /> 点击维度查看解释
-                                        </p>
+                                        <p className="text-xs text-slate-400 text-center mb-4 flex items-center justify-center gap-1"><Icon name="Info" size={12}/> 点击维度查看解释</p>
                                         {Object.entries(DIMENSIONS).map(([key, info]) => {
-                                            const totalScore = Object.values(scores).reduce((a, b) => Math.max(a, b), 0);
-                                            const isInfoActive = activeDimensionInfo === key;
-                                            const IconComp = info.icon;
-                                            
+                                            const isActive = activeDimensionInfo === key;
                                             return (
                                                 <div key={key} className="relative">
-                                                    <div 
-                                                        className={`flex items-center text-sm p-3 rounded-lg cursor-pointer transition-colors ${isInfoActive ? 'bg-white shadow-md ring-1 ring-slate-200' : 'hover:bg-slate-100'} dim-item`}
-                                                        onClick={() => toggleDimension(key)}
-                                                    >
-                                                        <div className="flex items-center gap-2 w-28">
-                                                            <Icon name={info.iconName} size={16} className={isInfoActive ? 'text-indigo-600' : 'text-slate-400'} />
-                                                            <span className="font-medium text-slate-700">
-                                                                {info.label}
-                                                            </span>
-                                                            <Icon name="ChevronRight" size={12} className={`text-slate-300 transition-transform ${isInfoActive ? 'rotate-90 text-slate-500' : ''}`} />
-                                                        </div>
-                                                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden mx-3">
-                                                            <div 
-                                                                className="h-full rounded-full transition-all duration-1000 ease-out" 
-                                                                style={{ 
-                                                                    width: `${(scores[key] / (Math.max(...Object.values(scores), 1) + 0.1)) * 100}%`, 
-                                                                    backgroundColor: info.color 
-                                                                }}
-                                                            />
-                                                        </div>
+                                                    <div className={`flex items-center text-sm p-3 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-white shadow-md ring-1 ring-slate-200' : 'hover:bg-slate-100'} dim-item`} onClick={() => toggleDimension(key)}>
+                                                        <div className="flex items-center gap-2 w-28"><Icon name={info.iconName} size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} /><span className="font-medium text-slate-700">{info.label}</span><Icon name="ChevronRight" size={12} className={`text-slate-300 transition-transform ${isActive ? 'rotate-90 text-slate-500' : ''}`} /></div>
+                                                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden mx-3"><div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${(scores[key] / (Math.max(...Object.values(scores), 1) + 0.1)) * 100}%`, backgroundColor: info.color }}/></div>
                                                     </div>
-                                                    
-                                                    {isInfoActive && (
-                                                        <div className="mx-2 mb-3 mt-1 p-3 bg-slate-50 border-l-4 border-indigo-400 text-xs text-slate-600 leading-relaxed animate-fade-in rounded-r-lg shadow-inner dim-desc">
-                                                            <strong className="block mb-1 text-indigo-900 text-sm">{DIMENSION_DETAILS[key].title}</strong>
-                                                            {DIMENSION_DETAILS[key].desc}
-                                                        </div>
-                                                    )}
+                                                    {isActive && <div className="mx-2 mb-3 mt-1 p-3 bg-slate-50 border-l-4 border-indigo-400 text-xs text-slate-600 leading-relaxed fade-in rounded-r-lg shadow-inner dim-desc"><strong className="block mb-1 text-indigo-900 text-sm">{DIMENSION_DETAILS[key].title}</strong>{DIMENSION_DETAILS[key].desc}</div>}
                                                 </div>
                                             )
                                         })}
                                     </div>
                                 </div>
-
-                                {/* Right: Details */}
                                 <div className="p-6 md:p-10 md:w-7/12">
                                     <div className="mb-8">
-                                        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                            <Icon name="BookOpen" size={20} className="text-indigo-600"/> 推荐流派
-                                        </h3>
+                                        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><Icon name="BookOpen" size={20} className="text-indigo-600"/> 推荐流派</h3>
                                         <div className="flex flex-wrap gap-2 mb-6">
                                             {analysis.recs.map(t => (
-                                                <button 
-                                                    key={t}
-                                                    onClick={() => setActiveTherapy(activeTherapy === t ? null : t)}
-                                                    className={`therapy-tag-btn px-4 py-2 rounded-full text-sm font-medium border transition-all flex items-center gap-2
-                                                        ${activeTherapy === t 
-                                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md transform scale-105 active' 
-                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600'}`}
-                                                >
-                                                    <Icon name="CheckCircle2" size={14} className={activeTherapy === t ? 'text-white' : 'text-emerald-500'}/>
-                                                    {t.split(' (')[0]}
+                                                <button key={t} onClick={() => setActiveTherapy(activeTherapy === t ? null : t)} className={`therapy-tag-btn px-4 py-2 rounded-full text-sm font-medium border transition-all flex items-center gap-2 active-scale ${activeTherapy === t ? 'bg-indigo-600 border-indigo-600 text-white shadow-md transform scale-105 active' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                                                    <Icon name="CheckCircle2" size={14} className={activeTherapy === t ? 'text-white' : 'text-emerald-500'}/>{t.split(' (')[0]}
                                                 </button>
                                             ))}
                                         </div>
-
-                                        {/* Dynamic Info Card */}
                                         <div ref={infoBoxRef} className={`info-box transition-all duration-300 overflow-hidden ${activeTherapy ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            <div className="bg-indigo-50/80 rounded-xl p-5 border border-indigo-100 relative mt-2">
-                                                <div className="info-box-arrow" style={{left: '20px'}}></div>
-                                                <button onClick={()=>setActiveTherapy(null)} className="absolute top-3 right-3 text-indigo-300 hover:text-indigo-600"><Icon name="X" size={18}/></button>
-                                                {activeTherapy && (
-                                                    <React.Fragment>
-                                                        <h4 className="font-bold text-indigo-900 mb-1 text-base">{activeTherapy.split(' (')[0]}</h4>
-                                                        <p className="text-xs text-indigo-500 mb-4 italic font-medium">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.summary}</p>
-                                                        
-                                                        <div className="space-y-3 text-sm text-slate-700">
-                                                            <div>
-                                                                <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Sparkles" size={14} className="text-amber-500"/> 核心理念</span>
-                                                                <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.philosophy}</p>
-                                                            </div>
-                                                            <div>
-                                                                <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Activity" size={14} className="text-emerald-500"/> 治疗方式</span>
-                                                                <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.process}</p>
-                                                            </div>
-                                                            <div>
-                                                                <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="CheckCircle2" size={14} className="text-blue-500"/> 适合人群</span>
-                                                                <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.suitability}</p>
-                                                            </div>
-                                                        </div>
-                                                    </React.Fragment>
-                                                )}
-                                            </div>
+                                            {activeTherapy && (
+                                                <div className="bg-indigo-50/80 rounded-xl p-5 border border-indigo-100 relative mt-2">
+                                                    <div className="info-box-arrow" style={{left: '20px'}}></div>
+                                                    <button onClick={()=>setActiveTherapy(null)} className="absolute top-3 right-3 text-indigo-300 hover:text-indigo-600"><Icon name="X" size={18}/></button>
+                                                    <h4 className="font-bold text-indigo-900 mb-1 text-base">{activeTherapy}</h4>
+                                                    <p className="text-xs text-indigo-500 mb-4 italic font-medium">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.summary}</p>
+                                                    <div className="space-y-3 text-sm text-slate-700">
+                                                        <div><span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Sparkles" size={14} className="text-amber-500"/> 核心理念</span><p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.philosophy}</p></div>
+                                                        <div><span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Activity" size={14} className="text-emerald-500"/> 治疗方式</span><p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.process}</p></div>
+                                                        <div><span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="CheckCircle2" size={14} className="text-blue-500"/> 适合人群</span><p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.suitability}</p></div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        
                                         {!activeTherapy && <div className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed text-center mt-4">👈 点击上方标签查看该流派的详细介绍</div>}
                                     </div>
-
                                     <div className="bg-pink-50 rounded-2xl p-6 border border-pink-100">
-                                        <h3 className="text-base font-bold text-pink-900 mb-2 flex items-center gap-2">
-                                            <Icon name="Heart" size={16} className="text-pink-600"/> 匹配建议
-                                        </h3>
+                                        <h3 className="text-base font-bold text-pink-900 mb-2 flex items-center gap-2"><Icon name="Heart" size={16} className="text-pink-600"/> 匹配建议</h3>
                                         <p className="text-pink-800 text-sm italic leading-relaxed">"{analysis.advice}"</p>
                                     </div>
-
                                     <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
                                         <span className="text-xs text-slate-400">*结果仅供参考，不作为诊断依据</span>
-                                        <button onClick={restart} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors btn-outline">
-                                            <Icon name="RefreshCw" size={16}/> 重新测试
-                                        </button>
+                                        <button onClick={restart} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors btn-outline active-scale"><Icon name="RefreshCw" size={16}/> 重新测试</button>
                                     </div>
                                 </div>
                             </div>
