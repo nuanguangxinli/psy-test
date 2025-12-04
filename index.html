@@ -1,0 +1,643 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+// --- 0. 样式注入 ---
+const Styles = () => (
+  <style>{`
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .info-box-arrow {
+        width: 0; height: 0; 
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid #EEF2FF; 
+        position: absolute; top: -8px; left: 20px;
+        transition: left 0.3s ease;
+    }
+    
+    * { -webkit-tap-highlight-color: transparent; }
+    button:active { transform: scale(0.98); }
+  `}</style>
+);
+
+// --- 1. 图标组件 (内嵌SVG，零依赖) ---
+const Icons = {
+    Compass: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>,
+    Brain: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/></svg>,
+    Activity: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+    Users: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>,
+    BookOpen: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+    Map: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>,
+    ArrowRight: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+    RefreshCw: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
+    Heart: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
+    Sparkles: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+    CheckCircle2: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
+    SkipForward: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>,
+    AlertCircle: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+    Info: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>,
+    X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+    ChevronRight: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+    Book: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+};
+
+const Icon = ({ name, size = 20, className = "", style = {} }) => {
+    // 简单封装，直接使用 Icons 对象
+    const Component = Icons[name];
+    if (!Component) return null;
+    return <Component width={size} height={size} className={className} style={style} />;
+};
+
+// --- 2. 核心数据 (文案已深度优化) ---
+const DIMENSIONS = {
+    rationality: { label: '理性架构', color: '#3B82F6', iconName: 'Brain' },
+    insight: { label: '深层洞察', color: '#8B5CF6', iconName: 'Map' },
+    somatic: { label: '躯体感知', color: '#10B981', iconName: 'Activity' },
+    systemic: { label: '系统/关系', color: '#F59E0B', iconName: 'Users' },
+    meaning: { label: '存在/叙事', color: '#EC4899', iconName: 'BookOpen' }
+};
+
+const DIMENSION_DETAILS = {
+    rationality: { title: "理性架构", desc: "倾向于用头脑解决问题。认为人之所以痛苦，是因为想错了或者方法不对。喜欢结构化、有逻辑的解决方案。" },
+    insight: { title: "深层洞察", desc: "关注过去和潜意识。认为现在的痛苦只是地上的草，根在地下。如果不把根挖出来，问题无法彻底解决。" },
+    somatic: { title: "躯体感知", desc: "相信身体的感觉。认为大脑会骗人，但身体（如心慌、胸闷）是真实的。治愈需要释放身体积压的能量。" },
+    systemic: { title: "系统/关系", desc: "看重关系与环境。认为没有谁是能独自生病的，要么是关系系统失衡，要么是内心的不同部分在冲突。" },
+    meaning: { title: "存在/叙事", desc: "关注故事和意义。认为人是活在故事里的。痛苦本身没关系，只要能从痛苦中重构出新的意义。" }
+};
+
+const THERAPY_KNOWLEDGE_BASE = {
+    "CBT (认知行为疗法)": {
+        summary: "全球应用最广泛、循证证据最充分的流派。",
+        philosophy: "核心是“认知决定情绪”。痛苦不源于事情本身，而源于对事情的看法。",
+        process: "像训练师一样，教个体识别脑子里的负面念头，用证据反驳它，并布置作业建立新思维。",
+        suitability: "适合想快速缓解症状、喜欢逻辑分析、愿意做练习的人。"
+    },
+    "SFBT (焦点解决短期治疗)": {
+        summary: "极度高效的实用主义流派。",
+        philosophy: "不问“为什么坏”，只问“什么时候好”。相信每个人都有解决自己问题的资源。",
+        process: "寻找过去成功的经验（例外时刻）并复制它。关注未来和解决方案，不深挖病因。",
+        suitability: "适合面临具体困境、想短时间看到改变、不愿深挖创伤的人。"
+    },
+    "REBT (理性情绪疗法)": {
+        summary: "风格犀利，CBT的先驱。",
+        philosophy: "痛苦源于绝对化的信念（如“我必须被所有人喜欢”）。",
+        process: "治疗师会通过激烈的辩论，挑战心中的执念，教导无条件自我接纳。",
+        suitability: "适合逻辑强、完美主义、能接受直率反馈的人。"
+    },
+    "心理动力学 (Psychodynamic)": {
+        summary: "精神分析的现代改良版，更注重现实适应。",
+        philosophy: "当下的症状是潜意识冲突的体现，也是早年关系的强迫性重复。",
+        process: "通过谈话探索童年经历如何影响现在的人际关系。看清模式，获得情感上的修通。",
+        suitability: "适合想从根源改变性格、探索人际模式、有内省能力的人。"
+    },
+    "精神分析 (Psychoanalysis)": {
+        summary: "深度的人格重构之旅。",
+        philosophy: "潜意识决定命运。通过探索被压抑的欲望和冲突，获得真正的心理自由。",
+        process: "通常需要高频次（一周多次），使用自由联想和解梦。这是一个漫长的探索过程。",
+        suitability: "适合追求深度自我探索、经济和时间充裕的人。"
+    },
+    "客体关系疗法": {
+        summary: "关注关系内化的流派。",
+        philosophy: "自我是在关系中形成的。心理问题源于把旧的关系剧本投射到了现在。",
+        process: "治疗师提供一个安全的关系（抱持性环境），修复早年被忽视或伤害的体验。",
+        suitability: "适合在亲密关系中反复受挫、缺乏安全感的人。"
+    },
+    "SE (躯体体验疗法)": {
+        summary: "基于神经生物学的创伤治疗。",
+        philosophy: "创伤是锁在神经系统里的生理反应（冻结的能量）。",
+        process: "不强迫回忆痛苦故事。通过关注身体的震颤、温度等感觉，释放生存能量。",
+        suitability: "适合PTSD、经历过创伤、容易惊恐或觉得语言无力的人。"
+    },
+    "舞动治疗": {
+        summary: "让身体成为表达的出口。",
+        philosophy: "身心一体。许多早期的创伤无法用语言描述，但身体记得。",
+        process: "通过动作、姿态和律动来表达情绪。绕过理性防御，直接工作于潜意识。",
+        suitability: "适合理性防御太强（说得头头是道但没感觉）或不善言辞的人。"
+    },
+    "正念疗法 (MBCT/MBSR)": {
+        summary: "东方禅修与西方心理学的结合。",
+        philosophy: "觉察当下，不加评判。痛苦源于对痛苦的抗拒。",
+        process: "训练大脑像看云一样看念头，从“行动模式”切换到“存在模式”。",
+        suitability: "适合焦虑、复发性抑郁、压力管理。"
+    },
+    "聚焦 (Focusing)": {
+        summary: "向内倾听身体智慧。",
+        philosophy: "改变的关键在于接触身体内部模糊的“体会”（Felt Sense）。",
+        process: "引导关注身体内部的感觉，与它对话，寻找准确的词语描述它。",
+        suitability: "适合感觉与内心断联、不知道自己真实感受的人。"
+    },
+    "IFS (内部家庭系统)": {
+        summary: "将内心视为一个微型社会。",
+        philosophy: "人格由许多“部分”组成。所有部分都有积极意图。",
+        process: "协调内心打架的部分，安抚保护者，救赎受伤的部分，恢复平衡。",
+        suitability: "适合内心冲突强烈、自我批评严重的人。"
+    },
+    "家庭治疗 (Family Therapy)": {
+        summary: "从系统角度看问题。",
+        philosophy: "孩子是家庭的镜子。个体症状往往是家庭系统失调的表现。",
+        process: "邀请家庭成员共同参与，调整沟通模式和互动规则。",
+        suitability: "适合青少年问题、夫妻问题、家庭关系紧张。"
+    },
+    "萨提亚模式": {
+        summary: "注重成长与沟通。",
+        philosophy: "问题不是问题，如何应对才是问题。关注冰山下的渴望。",
+        process: "利用雕塑、沟通姿态等体验，提升自我价值感，实现身心一致。",
+        suitability: "适合提升自尊、改善亲密关系、探索原生家庭。"
+    },
+    "叙事疗法 (Narrative Therapy)": {
+        summary: "极具人文关怀的后现代流派。",
+        philosophy: "人是被故事建构的。痛苦源于被主流话语压迫。",
+        process: "将人与问题剥离。寻找生命中的高光时刻，重写更有力量的人生剧本。",
+        suitability: "适合被标签化困扰、遭受社会压迫或寻求意义的人。"
+    },
+    "ACT (接纳承诺疗法)": {
+        summary: "强调心理灵活性。",
+        philosophy: "痛苦是生活的一部分。试图消除痛苦会导致更多问题。",
+        process: "不消除焦虑，而是接纳它。把精力花在对自己价值观重要的事情上。",
+        suitability: "适合长期受情绪困扰但想恢复生活、对方向迷茫的人。"
+    },
+    "人本主义/存在主义": {
+        summary: "回归人本身，强调真实关系。",
+        philosophy: "相信人有自我实现的本能。关注死亡、自由、孤独等终极命题。",
+        process: "提供无条件的接纳和真诚。在安全关系中，让你重新发现自己的力量。",
+        suitability: "适合人生转折期、感到空虚、渴望深度理解的人。"
+    },
+    "整合式心理咨询 (Integrative Therapy)": {
+        summary: "博采众长，量身定制。",
+        philosophy: "没有一种流派能解决所有问题。根据情况灵活组合。",
+        process: "初期可能用CBT止痛，后期用动力学治本，灵活切换。",
+        suitability: "适合大多数有着复杂需求的人。"
+    },
+    "荣格分析心理学": {
+        summary: "探索灵魂深处与集体潜意识。",
+        philosophy: "人生目标是“个性化”，整合面具与阴影。",
+        process: "关注梦、原型、神话。探索阿尼玛/阿尼姆斯等原型意象。",
+        suitability: "适合中年转型、对梦/艺术/灵性感兴趣的人。"
+    }
+};
+
+const QUESTIONS = [
+    { scenario: "关于焦虑", question: "在重要考核前感到心脏狂跳、手心出汗，个体本能觉得最有效的应对是？", options: [{ text: "给自己讲道理，列出证据告诉自己“这很安全”，用脑子压住恐惧。", dimension: "rationality" }, { text: "不瞎想，专心感受脚踩地板的实感，做深呼吸，让身体慢慢松弛。", dimension: "somatic" }, { text: "想象心里有个被吓坏的小孩，用大人的语气温柔地哄哄他。", dimension: "systemic" }, { text: "允许焦虑的感觉存在，不和它对抗，带着心跳加速的感觉去完成任务。", dimension: "meaning" }] },
+    { scenario: "关于坏习惯", question: "一个人明知熬夜不好却停不下来，深层原因往往是？", options: [{ text: "大脑的奖赏回路养成了习惯，得靠刻意练习建立新规矩。", dimension: "rationality" }, { text: "这是一种无声的反抗，好像只有在深夜，时间才真正属于自己。", dimension: "insight" }, { text: "心里有两个小人在打架，想健康的“管家”管不住想放纵的“孩子”。", dimension: "systemic" }, { text: "因为“自律差”这个标签掩盖了其他可能性，让人觉得既然如此，努力也没用。", dimension: "meaning" }] },
+    { scenario: "关于抑郁", question: "抑郁症患者常感到毫无动力。这种状态本质上更像是？", options: [{ text: "陷入了“我很差、世界很坏”的负面思维循环里。", dimension: "rationality" }, { text: "那是对自己发火，本来对别人的气没发出去，转头攻击自己了。", dimension: "insight" }, { text: "为了保命，身体自动切断了电源，进入了一种麻木迟钝的状态。", dimension: "somatic" }, { text: "感觉被一种外在的力量遮蔽了，暂时挡住了原本的光芒。", dimension: "meaning" }] },
+    { scenario: "身体的不适", question: "去医院检查没病，但总是胸口压抑、喉咙堵塞。这通常说明？", options: [{ text: "那些嘴上没说出来的委屈，变成了身体上的病痛。", dimension: "insight" }, { text: "压力太大了导致神经紧绷，需要调整心态放松一下。", dimension: "rationality" }, { text: "身体还记得过去受过的惊吓，像卡带了一样停在那个时刻。", dimension: "somatic" }, { text: "可能是身边的环境（家庭或职场）让人窒息，身体先感觉到了。", dimension: "systemic" }] },
+    { scenario: "关于自我", question: "人的内心结构，听起来最像什么？", options: [{ text: "硬件构造相似，区别在于后天安装了什么观念和思维模式。", dimension: "rationality" }, { text: "意识只是表面的一小部分，深层看不见的潜意识才是主导。", dimension: "insight" }, { text: "一个大家庭。心里住着好多性格不同的小人，健康就是别打架。", dimension: "systemic" }, { text: "一本正在写的书，没有固定的“我”，人是在讲故事中定义自己的。", dimension: "meaning" }] },
+    { scenario: "关于过去", question: "童年经历对现在的影响有多大？", options: [{ text: "非常大，小时候的经历是地基，不看清地基，楼就修不好。", dimension: "insight" }, { text: "有影响但不是绝对，关键是你现在怎么看它，人可以不受过去摆布。", dimension: "rationality" }, { text: "过去不仅仅是记忆，更是一种刻在神经里的生理反应习惯。", dimension: "somatic" }, { text: "过去只是素材，同样的经历，我们可以把它讲成悲剧或英雄剧。", dimension: "meaning" }] },
+    { scenario: "关于愤怒", question: "当感到极度愤怒时，最健康的心理处理方式是？", options: [{ text: "先冷静，想想火发得有没有道理，怎么沟通解决问题。", dimension: "rationality" }, { text: "找个安全地方吼出来、打打枕头，把身体里的火气排出去。", dimension: "somatic" }, { text: "往心里深处看，愤怒底下是不是藏着委屈、害怕或无助。", dimension: "insight" }, { text: "问问心里那个愤怒的部分：“你发火是在努力保护我什么吗？”", dimension: "systemic" }] },
+    { scenario: "关于梦境", question: "如果做了一个很奇怪的梦，该如何看待它？", options: [{ text: "大脑在清理垃圾信息，不用太在意，睡醒了就过日子。", dimension: "rationality" }, { text: "梦是通往内心深处的密道，可能藏着被压抑的愿望。", dimension: "insight" }, { text: "梦里的每个人物可能都是你自己性格的一个侧面，试着演演。", dimension: "systemic" }, { text: "不管合不合逻辑，去体会梦里的那种情绪，它本身就有意义。", dimension: "meaning" }] },
+    { scenario: "理想的咨询师", question: "在你的想象中，理想的心理咨询师应该怎么做？", options: [{ text: "提供具体方法，指导练习，分析利弊，帮助做出改变。", dimension: "rationality" }, { text: "陪伴一起挖掘记忆废墟，找到那些被遗忘的真相。", dimension: "insight" }, { text: "不需要说太多，只要稳稳地接住情绪，让人觉得安全。", dimension: "somatic" }, { text: "帮助协调内心打架的声音，或者理顺糟糕的人际关系。", dimension: "systemic" }] },
+    { scenario: "咨询中的沉默", question: "如果在咨询中沉默了两分钟，这通常意味着？", options: [{ text: "有点浪费时间或尴尬，应该赶紧找个话题打破沉默。", dimension: "rationality" }, { text: "潜意识里可能不想面对什么，或者在对抗，值得分析。", dimension: "insight" }, { text: "挺好的，正好趁机感受当下的呼吸，让情绪沉淀一会儿。", dimension: "somatic" }, { text: "一种无声的陪伴，即使不说话，在一起本身就很治愈。", dimension: "meaning" }] },
+    { scenario: "改变的关键", question: "一个人要发生根本改变，最关键的那个瞬间通常是？", options: [{ text: "突然看清了自己多年循环的根源，“啊！原来是因为这个！”。", dimension: "insight" }, { text: "换了个角度看死胡同，突然发现原来还有这种解决办法。", dimension: "rationality" }, { text: "以为会被批评，结果对方却温柔回应，那一刻心里的旧伤好了。", dimension: "systemic" }, { text: "紧绷多年的肩膀松下来了，一口长气呼出去了，身体觉得安全了。", dimension: "somatic" }] },
+    { scenario: "关于直觉", question: "做决定时，应该多大程度上相信直觉（第六感）？", options: [{ text: "不太可信，直觉往往是脑子偷懒，还是数据和逻辑更靠谱。", dimension: "rationality" }, { text: "很相信，直觉是身体的智慧，脑子会骗人，但肠胃反应不会。", dimension: "somatic" }, { text: "小心点，直觉可能是潜意识洞察，也可能是“一朝被蛇咬”的创伤。", dimension: "insight" }, { text: "直觉是心里某个“部分”的声音，值得听，但不能只听它一个人的。", dimension: "systemic" }] },
+    { scenario: "伴侣吵架", question: "伴侣吵架，问题通常出在？", options: [{ text: "沟通方式不对，需要学习怎么好好说话，控制情绪。", dimension: "rationality" }, { text: "看走了眼，其实是把小时候对父母的气，撒到了眼前人身上。", dimension: "insight" }, { text: "两人陷入了“一个追、一个逃”的恶性循环。", dimension: "systemic" }, { text: "吵架触发了身体里“被抛弃”的原始恐惧。", dimension: "somatic" }] },
+    { scenario: "关于空虚", question: "感到人生虚无、没有意义时，比较好的应对是？", options: [{ text: "别闲着，定个小目标动起来，忙起来了，充实感就回来了。", dimension: "rationality" }, { text: "这是小时候缺爱留下的黑洞，需要回到过去，修补情感缺口。", dimension: "insight" }, { text: "不用急着填满，试着和空虚待一会儿，也许是重新定义人生的机会。", dimension: "meaning" }, { text: "去摸摸泥土，闻闻花香，抱抱大树，从身体触感中找回活着的感觉。", dimension: "somatic" }] },
+    { scenario: "关于评价", question: "为什么人们会那么在意别人的看法？", options: [{ text: "因为脑子里有个错误信念，觉得“我必须被喜欢”，这不科学。", dimension: "rationality" }, { text: "其实是在意心里住着的那个严厉的父母，批评的声音内化了。", dimension: "insight" }, { text: "被社会洗脑了，我们不自觉被“只有那样才算成功”的社会标准绑架了。", dimension: "meaning" }, { text: "在原始环境中，被群体排斥意味着生存威胁，这种恐惧刻在基因里。", dimension: "somatic" }] },
+    { scenario: "关于痛苦", question: "如果痛苦无法避免（如生老病死），该如何面对？", options: [{ text: "既然躲不掉，就背着它上路，把精力花在真正重要的事情上。", dimension: "meaning" }, { text: "改变能改变的，接受不能改变的，尽量保持乐观心态。", dimension: "rationality" }, { text: "允许自己找个安全的地方大哭一场，彻底宣泄悲伤。", dimension: "insight" }, { text: "回到家人朋友身边，通过和别人的连接来汲取力量。", dimension: "systemic" }] },
+    { scenario: "谁负责改变", question: "在心理咨询中，谁应该对“治好”负责？", options: [{ text: "主要是来访者，咨询师只是向导，路还得自己走，练习得自己做。", dimension: "rationality" }, { text: "是两个人共同负责，这段关系的质量本身就是药。", dimension: "systemic" }, { text: "看潜意识的心情，有时候改变是自然发生的，咨询只是催化。", dimension: "insight" }, { text: "伪命题，重点不是“消灭症状”，而是学会怎么和症状共处。", dimension: "meaning" }] },
+    { scenario: "关于“正常”", question: "关于“正常”的心理健康状态？", options: [{ text: "能正常工作生活，情绪稳定，没啥大毛病。", dimension: "rationality" }, { text: "对自己了解得很深，能接纳自己阴暗的一面，不拧巴。", dimension: "insight" }, { text: "身体不僵硬，能量是活的，能兴奋也能放松。", dimension: "somatic" }, { text: "活得像自己，哪怕有痛苦，也是鲜活的、有血有肉的。", dimension: "meaning" }] },
+    { scenario: "不想去咨询", question: "如果发现自己总是迟到或者不想去见咨询师，这说明？", options: [{ text: "意志力不够坚定，在逃避困难，需要定个计划克服拖延症。", dimension: "rationality" }, { text: "这是为了保护自己，心里有些部分觉得还没准备好去揭伤疤。", dimension: "systemic" }, { text: "可能对咨询师有了某种情绪（比如像在反抗古板的权威）。", dimension: "insight" }, { text: "身体在抗拒，也许咨询的节奏太快了，让人感觉不安全。", dimension: "somatic" }] },
+    { scenario: "家庭聚会", question: "春节回家，亲戚的盘问让人很烦。这反映了？", options: [{ text: "他们缺乏界限感，需要学习怎么温和而坚定地拒绝。", dimension: "rationality" }, { text: "那一刻，人好像变回了小时候那个无力反抗的小孩。", dimension: "insight" }, { text: "如果你不演“被催婚的可怜虫”，他们的焦虑就没处放。", dimension: "systemic" }, { text: "他们只是社会主流价值观的复读机，你不必认同。", dimension: "meaning" }] },
+    { scenario: "关于创伤记忆", question: "对于那些痛苦的记忆，最理想的处理结果是？", options: [{ text: "最好能淡忘，想起来的时候内心毫无波澜，不再难受。", dimension: "rationality" }, { text: "彻底搞清楚，找回缺失的记忆拼图，明白发生了什么，才能翻篇。", dimension: "insight" }, { text: "不需要全部想起来，只要身体感觉安全了，记忆模糊也没关系。", dimension: "somatic" }, { text: "把它编进人生故事里，它是我经历的一部分，但不能定义我是谁。", dimension: "meaning" }] },
+    { scenario: "关于多面性", question: "有时候人会觉得自己像变了个人（职场凶，家里怂），这是？", options: [{ text: "很正常，在不同场合戴不同面具，说明适应能力强。", dimension: "rationality" }, { text: "这些都是自我的不同侧面（零件），每个侧面都是为了应对环境。", dimension: "systemic" }, { text: "这可能反映了内心不太整合，像分裂成了几块。", dimension: "insight" }, { text: "本来就没有固定的“我”，人就是随着关系和环境像水一样流动的。", dimension: "meaning" }] },
+    { scenario: "关于说话", question: "在咨询中，“说话”的主要作用是？", options: [{ text: "向咨询师描述问题，好让对方给建议和反馈。", dimension: "rationality" }, { text: "打开潜意识大门的钥匙，说什么不重要，顺嘴溜出来的才重要。", dimension: "insight" }, { text: "换一种叙述方式，就是换一种活法。", dimension: "meaning" }, { text: "很多深层感觉说不出来，得靠非语言的默契。", dimension: "somatic" }] },
+    { scenario: "关于独处", question: "一个人独处时感到恐慌，往往是因为？", options: [{ text: "没培养出什么兴趣爱好，闲下来不知道干嘛，时间太难熬。", dimension: "rationality" }, { text: "心里觉得空荡荡的，好像只要没人陪，自己就要消失了。", dimension: "insight" }, { text: "习惯了在关系里找存在感，没人给反馈，就觉得自己不存在了。", dimension: "systemic" }, { text: "直面了“人原本就是孤独的”这个真相，这种虚无感让人害怕。", dimension: "meaning" }] },
+    { scenario: "咨询的目标", question: "如果咨询很成功，结束时的理想状态是？", options: [{ text: "现实问题解决了，症状消失，掌握了应对未来挑战的技能。", dimension: "rationality" }, { text: "活明白了。知道自己性格怎么来的，不再掉进同一个坑里。", dimension: "insight" }, { text: "活出了自己。找到了人生的奔头，哪怕带着伤疤，也能活得精彩。", dimension: "meaning" }, { text: "身心通透。身体感觉安全、放松，能敏锐感觉到自己的状态变化。", dimension: "somatic" }] },
+    { scenario: "世界观", question: "如果要把心理世界浓缩成一句话，你更认同哪一句？", options: [{ text: "世界是客观的，痛苦源于错误的看法。修正想法，世界就清朗了。", dimension: "rationality" }, { text: "看不见的潜意识在暗中操控命运，只有看见它，才能醒来。", dimension: "insight" }, { text: "身体比大脑更诚实。大脑会编故事，但身体感觉永远记录真相。", dimension: "somatic" }, { text: "没有人是一座孤岛。我们都是关系网里的节点，牵一发而动全身。", dimension: "systemic" }] }
+];
+
+// --- 4. 雷达图组件 (SVG) ---
+const RadarChart = ({ data }) => {
+    const svgSize = 300;
+    const center = svgSize / 2;
+    const radius = 100;
+    const maxScore = Math.max(...Object.values(data), 5); 
+    const keys = Object.keys(DIMENSIONS);
+    const angleStep = (Math.PI * 2) / keys.length;
+
+    const getPoint = (val, idx) => {
+        const angle = idx * angleStep - Math.PI / 2;
+        const r = (val / maxScore) * radius;
+        const x = center + r * Math.cos(angle);
+        const y = center + r * Math.sin(angle);
+        return `${x},${y}`;
+    };
+
+    const polyPoints = keys.map((k, i) => getPoint(data[k], i)).join(" ");
+
+    const grids = [0.2, 0.4, 0.6, 0.8, 1].map((scale, idx) => {
+        const pts = keys.map((_, i) => {
+            const angle = i * angleStep - Math.PI / 2;
+            const r = radius * scale;
+            return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
+        }).join(" ");
+        return <polygon key={idx} points={pts} fill="none" stroke="#E2E8F0" strokeWidth="1" />;
+    });
+
+    const axes = keys.map((k, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = center + radius * Math.cos(angle);
+        const y = center + radius * Math.sin(angle);
+        const lx = center + (radius + 25) * Math.cos(angle);
+        const ly = center + (radius + 25) * Math.sin(angle);
+        return (
+            <g key={i}>
+                <line x1={center} y1={center} x2={x} y2={y} stroke="#E2E8F0" strokeWidth="1" />
+                <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="12" fill="#64748B">
+                    {DIMENSIONS[k].label}
+                </text>
+            </g>
+        );
+    });
+
+    return (
+        <svg width={svgSize} height={svgSize} className="mx-auto">
+            {grids}
+            {axes}
+            <polygon points={polyPoints} fill="rgba(79, 70, 229, 0.2)" stroke="#4F46E5" strokeWidth="2" />
+        </svg>
+    );
+};
+
+// --- 5. 主应用组件 ---
+const PsychSchoolMatchApp = () => {
+    const [step, setStep] = useState('intro');
+    const [qIndex, setQIndex] = useState(0);
+    const [scores, setScores] = useState({ rationality: 0, insight: 0, somatic: 0, systemic: 0, meaning: 0 });
+    const [skipped, setSkipped] = useState(0);
+    const [activeTherapy, setActiveTherapy] = useState(null);
+    const [activeDimensionInfo, setActiveDimensionInfo] = useState(null);
+    const [history, setHistory] = useState([]);
+    
+    const infoBoxRef = useRef(null);
+    
+    // 滚动到流派详情
+    useEffect(() => {
+        if (activeTherapy && infoBoxRef.current) {
+            setTimeout(() => {
+                infoBoxRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+    }, [activeTherapy]);
+
+    const handleAnswer = (dim) => {
+        setHistory([...history, { type: 'answer', dim }]);
+        setScores(prev => ({ ...prev, [dim]: prev[dim] + 1 }));
+        nextQ();
+    };
+
+    const handleSkip = () => {
+        setHistory([...history, { type: 'skip' }]);
+        setSkipped(s => s + 1);
+        nextQ();
+    };
+
+    // 返回上一题逻辑
+    const handleBack = () => {
+        if (qIndex > 0 && history.length > 0) {
+            const lastAction = history[history.length - 1];
+            const newHistory = history.slice(0, -1);
+            
+            // 回滚分数或跳过计数
+            if (lastAction.type === 'answer') {
+                setScores(prev => ({ ...prev, [lastAction.dim]: prev[lastAction.dim] - 1 }));
+            } else {
+                setSkipped(s => s - 1);
+            }
+            setHistory(newHistory);
+            setQIndex(prev => prev - 1);
+        }
+    };
+
+    const nextQ = () => {
+        if (qIndex < QUESTIONS.length - 1) {
+            setQIndex(prev => prev + 1);
+        } else {
+            setStep('result');
+            const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            setActiveDimensionInfo(sorted[0][0]);
+        }
+    };
+
+    const restart = () => {
+        setScores({ rationality: 0, insight: 0, somatic: 0, systemic: 0, meaning: 0 });
+        setSkipped(0);
+        setQIndex(0);
+        setHistory([]);
+        setStep('intro');
+        setActiveTherapy(null);
+        setActiveDimensionInfo(null);
+    };
+
+    const toggleDimension = (key) => {
+        setActiveDimensionInfo(activeDimensionInfo === key ? null : key);
+    };
+
+    const getResult = () => {
+        const total = Object.values(scores).reduce((a,b)=>a+b, 0);
+        if (total < 3) return { type: 'insufficient' };
+        
+        const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+        const topDim = sorted[0][0];
+        const topScore = sorted[0][1];
+        
+        if (topScore < total * 0.32) return { type: 'balanced', sortedDims: sorted };
+        
+        return { type: 'specific', dim: topDim };
+    };
+
+    const resultData = getResult();
+
+    const getAnalysisText = () => {
+        if (resultData.type === 'insufficient') return {
+            title: "神秘的漫游者",
+            desc: "数据太少，无法绘制精确地图。以下是所有可能的流派供你参考探索。",
+            recs: Object.keys(THERAPY_KNOWLEDGE_BASE),
+            advice: "也许一位包容性极强、不急于预设框架的资深咨询师会更适合你，你们可以尝试从一种自由、开放的对话氛围开始。"
+        };
+        if (resultData.type === 'balanced') {
+            const dim1 = resultData.sortedDims[0][0];
+            const dim2 = resultData.sortedDims[1][0];
+            const representativeTherapies = {
+                rationality: "CBT (认知行为疗法)",
+                insight: "心理动力学 (Psychodynamic)",
+                somatic: "SE (躯体体验疗法)",
+                systemic: "IFS (内部家庭系统)",
+                meaning: "叙事疗法 (Narrative Therapy)"
+            };
+            return {
+                title: "全息整合者",
+                desc: "你的心灵地图非常平衡。既尊重理性，也敬畏潜意识；既感知身体，也看重关系。单一流派很难满足你。",
+                recs: [
+                    "整合式心理咨询 (Integrative Therapy)",
+                    representativeTherapies[dim1],
+                    representativeTherapies[dim2]
+                ],
+                advice: "倾向于“整合取向”的咨询师可能更适合你，他们通常能敏锐地根据你当下的状态，灵活调整工作的重点和节奏。"
+            };
+        }
+        
+        const lib = {
+            rationality: {
+                title: "理性建筑师",
+                desc: "拥有一颗科学家般的大脑。认为痛苦源于“错误的计算”。渴望清晰的逻辑和方案。",
+                recs: ["CBT (认知行为疗法)", "SFBT (焦点解决短期治疗)", "REBT (理性情绪疗法)"],
+                advice: "在初次访谈中，你可以留意咨询师的工作风格是否条理清晰，以及对方是否倾向于和你一起设定具体的改变目标。"
+            },
+            insight: {
+                title: "深渊潜水员",
+                desc: "深信“过去即现在”。渴望理解痛苦背后的意义，愿潜入潜意识深海，打捞真相。",
+                recs: ["心理动力学 (Psychodynamic)", "精神分析 (Psychoanalysis)", "客体关系疗法", "荣格分析心理学"],
+                advice: "在选择咨询师时，可以关注对方是否愿意给你足够的空间，去从容地探索过往经历、童年记忆或梦境对当下的深远影响。"
+            },
+            somatic: {
+                title: "身心共鸣者",
+                desc: "相信身体比大脑更诚实。创伤是锁在神经系统里的能量。治愈需要呼吸和流动。",
+                recs: ["SE (躯体体验疗法)", "舞动治疗", "正念疗法 (MBCT/MBSR)", "聚焦 (Focusing)"],
+                advice: "在交流时，你可以感受一下对方是否能敏锐地捕捉到你身体的反应（如呼吸、姿势的变化），这通常是该流派咨询师的特质。"
+            },
+            systemic: {
+                title: "内在调解员",
+                desc: "拥有生态视角。不论是内心微型社会还是外部家庭，追求的是系统的平衡。",
+                recs: ["IFS (内部家庭系统)", "家庭治疗 (Family Therapy)", "萨提亚模式"],
+                advice: "你可以留意咨询师是否不仅关注你个人，还能看到你所处的家庭环境或人际网络是如何运作的，以及是否具备系统性的视野。"
+            },
+            meaning: {
+                title: "故事重构者",
+                desc: "具有哲学家气质。痛苦源于被强加的标签。寻求的是重写人生剧本的权力。",
+                recs: ["叙事疗法 (Narrative Therapy)", "ACT (接纳承诺疗法)", "人本主义/存在主义"],
+                advice: "你可以感受咨询师是否不仅仅把你视为需要消除症状的对象，而是更愿意作为一个伙伴，陪你探索生活的意义与独特的价值。"
+            }
+        };
+        return lib[resultData.dim];
+    };
+
+    const analysis = getAnalysisText();
+
+    // --- Views ---
+
+    if (step === 'intro') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen p-6 animate-fade-in max-w-lg mx-auto">
+                <Styles />
+                <div className="bg-white rounded-3xl shadow-xl p-8 text-center w-full border border-white card">
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-indigo-50 p-5 rounded-full text-indigo-600">
+                            <Icon name="Compass" size={48} />
+                        </div>
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-2">心理咨询流派匹配测验</h1>
+                    <p className="text-xs font-bold text-indigo-500 tracking-widest mb-6 uppercase">Psychotherapy Orientation Match</p>
+                    <p className="text-slate-600 mb-8 text-sm leading-relaxed">
+                        这不是考试，没有对错。<br/>
+                        包含 <strong>{QUESTIONS.length}</strong> 个临床情境的直觉探索。<br/>
+                        我们将通过你的选择，帮你找到最懂你的心理学流派。
+                    </p>
+                    <button 
+                        onClick={() => setStep('quiz')}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 btn-primary"
+                    >
+                        开始探索 <Icon name="ArrowRight" size={20}/>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (step === 'quiz') {
+        const q = QUESTIONS[qIndex];
+        const progress = ((qIndex + 1) / QUESTIONS.length) * 100;
+
+        return (
+            <div className="flex flex-col items-center min-h-screen p-4 pt-8 bg-slate-50 max-w-2xl mx-auto font-sans">
+                <Styles />
+                <div className="w-full flex justify-between text-xs font-bold text-slate-400 mb-2 px-1">
+                    <span>
+                        {qIndex > 0 && (
+                            <button onClick={handleBack} className="text-indigo-500 hover:text-indigo-700 flex items-center gap-1 font-medium btn-back">
+                                <Icon name="ArrowRight" className="rotate-180" size={12} /> 返回上一题
+                            </button>
+                        )}
+                    </span>
+                    <span>Q{qIndex + 1} / {QUESTIONS.length}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-200 rounded-full mb-6 overflow-hidden">
+                    <div className="h-full bg-indigo-500 transition-all duration-300" style={{width: `${progress}%`}}></div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 w-full animate-fade-in card">
+                    <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full mb-4 tag">
+                        {q.scenario}
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-6 leading-snug">{q.question}</h3>
+                    <div className="space-y-3">
+                        {q.options.map((opt, i) => (
+                            <button 
+                                key={i}
+                                onClick={() => handleAnswer(opt.dimension)}
+                                className="w-full text-left p-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 active:bg-indigo-100 transition-colors text-slate-700 text-sm font-medium leading-relaxed option-btn"
+                            >
+                                {opt.text}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                
+                <button 
+                    onClick={handleSkip}
+                    className="mt-6 text-slate-400 text-sm flex items-center gap-1 hover:text-slate-600 btn-outline"
+                >
+                    <Icon name="SkipForward" size={16}/> 跳过 / 以上都不符合
+                </button>
+            </div>
+        );
+    }
+
+    if (step === 'result') {
+        return (
+            <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto">
+                <Styles />
+                <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden animate-fade-in">
+                    {/* Header */}
+                    <div className="bg-slate-900 text-white p-8 text-center">
+                        <h2 className="text-sm font-medium text-slate-400 mb-2 flex items-center justify-center gap-2">
+                            <Icon name="Sparkles" size={16}/> 你的心灵原型
+                        </h2>
+                        <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 mb-4">
+                            {analysis.title}
+                        </h1>
+                        <p className="text-slate-300 text-sm md:text-base max-w-2xl mx-auto font-light leading-relaxed">
+                            {analysis.desc}
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row">
+                        {/* Left: Chart & Dimensions */}
+                        <div className="p-6 md:p-8 md:w-5/12 border-b md:border-b-0 md:border-r border-slate-100 flex flex-col items-center justify-center bg-slate-50/50">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 tracking-widest">能量分布</h3>
+                            <RadarChart data={scores} />
+                            {skipped > 0 && <p className="text-xs text-amber-500 mt-4 bg-amber-50 px-2 py-1 rounded">已跳过 {skipped} 题</p>}
+                            
+                            <div className="w-full space-y-3 mt-6 px-2 dim-list">
+                                <p className="text-xs text-slate-400 text-center mb-4 flex items-center justify-center gap-1">
+                                    <Icon name="Info" size={12} /> 点击维度查看解释
+                                </p>
+                                {Object.entries(DIMENSIONS).map(([key, info]) => {
+                                    const totalScore = Object.values(scores).reduce((a, b) => Math.max(a, b), 0);
+                                    const isInfoActive = activeDimensionInfo === key;
+                                    const IconComp = info.icon;
+                                    
+                                    return (
+                                        <div key={key} className="relative">
+                                            <div 
+                                                className={`flex items-center text-sm p-3 rounded-lg cursor-pointer transition-colors ${isInfoActive ? 'bg-white shadow-md ring-1 ring-slate-200' : 'hover:bg-slate-100'} dim-item`}
+                                                onClick={() => toggleDimension(key)}
+                                            >
+                                                <div className="flex items-center gap-2 w-28">
+                                                    <Icon name={info.iconName} size={16} className={isInfoActive ? 'text-indigo-600' : 'text-slate-400'} />
+                                                    <span className="font-medium text-slate-700">
+                                                        {info.label}
+                                                    </span>
+                                                    <Icon name="ChevronRight" size={12} className={`text-slate-300 transition-transform ${isInfoActive ? 'rotate-90 text-slate-500' : ''}`} />
+                                                </div>
+                                                <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden mx-3">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all duration-1000 ease-out" 
+                                                        style={{ 
+                                                            width: `${(scores[key] / (Math.max(...Object.values(scores), 1) + 0.1)) * 100}%`, 
+                                                            backgroundColor: info.color 
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            {isInfoActive && (
+                                                <div className="mx-2 mb-3 mt-1 p-3 bg-slate-50 border-l-4 border-indigo-400 text-xs text-slate-600 leading-relaxed animate-fade-in rounded-r-lg shadow-inner dim-desc">
+                                                    <strong className="block mb-1 text-indigo-900 text-sm">{DIMENSION_DETAILS[key].title}</strong>
+                                                    {DIMENSION_DETAILS[key].desc}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Right: Details */}
+                        <div className="p-6 md:p-10 md:w-7/12">
+                            <div className="mb-8">
+                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                    <Icon name="BookOpen" size={20} className="text-indigo-600"/> 推荐流派
+                                </h3>
+                                <div className="flex flex-wrap gap-2 mb-6">
+                                    {analysis.recs.map(t => (
+                                        <button 
+                                            key={t}
+                                            onClick={() => setActiveTherapy(activeTherapy === t ? null : t)}
+                                            className={`therapy-tag-btn px-4 py-2 rounded-full text-sm font-medium border transition-all flex items-center gap-2
+                                                ${activeTherapy === t 
+                                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md transform scale-105 active' 
+                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600'}`}
+                                        >
+                                            <Icon name="CheckCircle2" size={14} className={activeTherapy === t ? 'text-white' : 'text-emerald-500'}/>
+                                            {t.split(' (')[0]}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div ref={infoBoxRef} className={`info-box transition-all duration-300 overflow-hidden ${activeTherapy ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="bg-indigo-50/80 rounded-xl p-5 border border-indigo-100 relative mt-2">
+                                        <div className="info-box-arrow" style={{left: '20px'}}></div>
+                                        <button onClick={()=>setActiveTherapy(null)} className="absolute top-3 right-3 text-indigo-300 hover:text-indigo-600"><Icon name="X" size={18}/></button>
+                                        {activeTherapy && (
+                                            <>
+                                                <h4 className="font-bold text-indigo-900 mb-1 text-base">{activeTherapy.split(' (')[0]}</h4>
+                                                <p className="text-xs text-indigo-500 mb-4 italic font-medium">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.summary}</p>
+                                                
+                                                <div className="space-y-3 text-sm text-slate-700">
+                                                    <div>
+                                                        <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Sparkles" size={14} className="text-amber-500"/> 核心理念</span>
+                                                        <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.philosophy}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="Activity" size={14} className="text-emerald-500"/> 治疗方式</span>
+                                                        <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.process}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-bold text-slate-900 block mb-1 flex items-center gap-1"><Icon name="CheckCircle2" size={14} className="text-blue-500"/> 适合人群</span>
+                                                        <p className="text-slate-600 leading-relaxed pl-5 border-l-2 border-indigo-200">{THERAPY_KNOWLEDGE_BASE[activeTherapy]?.suitability}</p>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {!activeTherapy && <div className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed text-center mt-4">👈 点击上方标签查看该流派的详细介绍</div>}
+                            </div>
+
+                            <div className="bg-pink-50 rounded-2xl p-6 border border-pink-100">
+                                <h3 className="text-base font-bold text-pink-900 mb-2 flex items-center gap-2">
+                                    <Icon name="Heart" size={16} className="text-pink-600"/> 匹配建议
+                                </h3>
+                                <p className="text-pink-800 text-sm italic leading-relaxed">"{analysis.advice}"</p>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
+                                <span className="text-xs text-slate-400">*结果仅供参考，不作为诊断依据</span>
+                                <button onClick={restart} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors btn-outline">
+                                    <Icon name="RefreshCw" size={16}/> 重新测试
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
+
+export default PsychSchoolMatchApp;
